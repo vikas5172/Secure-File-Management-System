@@ -4,21 +4,15 @@ import random
 import json
 import hashlib
 import os
-import shutil
 import time
-from file_operations import upload_file
-from file_operations import share_file
-from file_operations import decrypt_file
-from file_operations import write_to_file
+from file_operations import upload_file, share_file, decrypt_file, write_to_file
 
 SECURE_DIR = "secure_storage"
 if not os.path.exists(SECURE_DIR):
     os.makedirs(SECURE_DIR)
 
-
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
-
 
 def save_default_credentials():
     if not os.path.exists("credentials.json"):
@@ -29,14 +23,18 @@ def save_default_credentials():
         with open("credentials.json", "w") as f:
             json.dump(credentials, f)
 
-
 def upload_file_gui():
     source_path = filedialog.askopenfilename(title="Select file to upload")
     if source_path:
         try:
-            upload_file(source_path)  # ✅ Call the encrypted upload function
+            success = upload_file(source_path)
             file_name = os.path.basename(source_path)
-            messagebox.showinfo("Success", f"File '{file_name}' uploaded and encrypted successfully!")
+
+            if success:
+                messagebox.showinfo("Success", f"File '{file_name}' uploaded and encrypted successfully!")
+            else:
+                messagebox.showerror("Upload Failed", f"File '{file_name}' was not uploaded due to a detected threat.")
+
         except Exception as e:
             messagebox.showerror("Error", f"Error uploading file: {e}")
 
@@ -48,8 +46,8 @@ def read_file_gui():
         if content:
             content_window = tk.Toplevel()
             content_window.title(f"Contents of {file_name}")
-            text_area = scrolledtext.ScrolledText(content_window, wrap=tk.WORD, width=60, height=20)
-            text_area.pack()
+            text_area = scrolledtext.ScrolledText(content_window, wrap=tk.WORD, width=80, height=25)
+            text_area.pack(padx=10, pady=10)
             text_area.insert(tk.END, content)
             text_area.configure(state="disabled")
         else:
@@ -63,7 +61,6 @@ def write_or_append_file_gui():
         if content:
             mode = 'a' if action == 'yes' else 'w'
             try:
-                # ✅ Use the file_operations.py function:
                 write_to_file(file_name, content + "\n", mode)
                 messagebox.showinfo("Success", f"File '{file_name}' updated and encrypted file re-synced!")
             except Exception as e:
@@ -115,70 +112,82 @@ def share_file_gui():
 
     tk.Button(share_window, text="Share", command=proceed_sharing).pack(pady=10)
 
+def view_threat_log_gui():
+    try:
+        with open("threat_log.txt", "r") as f:
+            content = f.read()
+        log_window = tk.Toplevel()
+        log_window.title("Threat Log Viewer")
+        text_area = scrolledtext.ScrolledText(log_window, wrap=tk.WORD, width=80, height=25)
+        text_area.pack(padx=10, pady=10)
+        text_area.insert(tk.END, content)
+        text_area.config(state='disabled')
+    except FileNotFoundError:
+        messagebox.showerror("Error", "threat_log.txt not found!")
+
 def launch_file_manager_gui():
     fm = tk.Tk()
     fm.title("Secure File Manager")
+    fm.geometry("500x500")  # Enlarged window
 
     tk.Label(fm, text="Choose Operation", font=("Arial", 14)).pack(pady=10)
-    tk.Button(fm, text="Upload File", width=25, command=upload_file_gui).pack(pady=5)
-    tk.Button(fm, text="Read File", width=25, command=read_file_gui).pack(pady=5)
-    tk.Button(fm, text="Write / Append to File", width=25, command=write_or_append_file_gui).pack(pady=5)
-    tk.Button(fm, text="View Metadata", width=25, command=view_metadata_gui).pack(pady=5)
-    tk.Button(fm, text="Share File", width=25, command=share_file_gui).pack(pady=5)
-    tk.Button(fm, text="Exit", width=25, command=fm.destroy).pack(pady=10)
+    tk.Button(fm, text="Upload File", width=30, command=upload_file_gui).pack(pady=5)
+    tk.Button(fm, text="Read File", width=30, command=read_file_gui).pack(pady=5)
+    tk.Button(fm, text="Write / Append to File", width=30, command=write_or_append_file_gui).pack(pady=5)
+    tk.Button(fm, text="View Metadata", width=30, command=view_metadata_gui).pack(pady=5)
+    tk.Button(fm, text="Share File", width=30, command=share_file_gui).pack(pady=5)
+    tk.Button(fm, text="View Threat Log", width=30, command=view_threat_log_gui).pack(pady=5)
+    tk.Button(fm, text="Exit", width=30, command=fm.destroy).pack(pady=10)
     fm.mainloop()
-
-
-def verify_otp_window(root):
-    otp = str(random.randint(1000, 9999))
-    messagebox.showinfo("OTP", f"Your OTP is: {otp}")
-
-    otp_window = tk.Toplevel(root)
-    otp_window.title("OTP Verification")
-
-    tk.Label(otp_window, text="Enter OTP:").pack()
-    otp_entry = tk.Entry(otp_window)
-    otp_entry.pack()
-
-    def check_otp():
-        if otp_entry.get() == otp:
-            messagebox.showinfo("Success", "Authentication Successful!")
-            otp_window.destroy()
-            root.destroy()
-            launch_file_manager_gui()
-        else:
-            messagebox.showerror("Error", "Incorrect OTP!")
-
-    tk.Button(otp_window, text="Verify", command=check_otp).pack()
-
 
 def auth_window():
     save_default_credentials()
     root = tk.Tk()
     root.title("Secure File Manager - Login")
+    root.geometry("400x300")
 
-    tk.Label(root, text="Username").pack()
+    tk.Label(root, text="Username").pack(pady=5)
     username_entry = tk.Entry(root)
-    username_entry.pack()
+    username_entry.pack(pady=5)
 
-    tk.Label(root, text="Password").pack()
+    tk.Label(root, text="Password").pack(pady=5)
     password_entry = tk.Entry(root, show="*")
-    password_entry.pack()
+    password_entry.pack(pady=5)
+
+    otp_entry = None
+    generated_otp = None  
+
+    def verify_otp_window():
+        nonlocal otp_entry, generated_otp
+        generated_otp = str(random.randint(1000, 9999))
+        messagebox.showinfo("OTP", f"Your OTP is: {generated_otp}")
+
+        if otp_entry:
+            otp_entry.delete(0, tk.END)
+        else:
+            tk.Label(root, text="Enter OTP:").pack(pady=5)
+            otp_entry = tk.Entry(root)
+            otp_entry.pack(pady=5)
+            tk.Button(root, text="Verify OTP", command=check_otp).pack(pady=10)
+
+    def check_otp():
+        if otp_entry.get() == generated_otp:
+            messagebox.showinfo("Success", "Authentication Successful!")
+            root.destroy()
+            launch_file_manager_gui()
+        else:
+            messagebox.showerror("Error", "Incorrect OTP!")
+            otp_entry.delete(0, tk.END)
 
     def login():
         with open("credentials.json", "r") as f:
             data = json.load(f)
-        username = username_entry.get()
-        password = password_entry.get()
-
-        if username == data["username"] and hash_password(password) == data["password"]:
-            verify_otp_window(root)
+        if username_entry.get() == data["username"] and hash_password(password_entry.get()) == data["password"]:
+            verify_otp_window()
         else:
             messagebox.showerror("Error", "Invalid Credentials")
 
-    tk.Button(root, text="Login", command=login).pack()
+    tk.Button(root, text="Login", command=login).pack(pady=10)
     root.mainloop()
-
-
 if __name__ == "__main__":
     auth_window()
