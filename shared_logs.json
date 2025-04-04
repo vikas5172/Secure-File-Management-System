@@ -1,0 +1,17 @@
+[
+    {
+        "file_name": "testfile.txt",
+        "shared_to": "C:/Users/ABHISHEK MAURYA/Downloads/Secure-File-Management-System-main/encrypted_files",
+        "timestamp": "Mon Mar 24 00:53:08 2025"
+    },
+    {
+        "file_name": "testfile.txt.enc",
+        "shared_to": "C:/Users/ABHISHEK MAURYA/Downloads/Secure-File-Management-System-main/shared_files",
+        "timestamp": "Mon Mar 24 01:14:22 2025"
+    },
+    {
+        "file_name": "1-April.pdf.enc",
+        "shared_to": "Recipient1",
+        "timestamp": "2025-03-27T00:39:53.543517"
+    }
+]

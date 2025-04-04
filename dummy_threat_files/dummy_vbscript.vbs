@@ -1,0 +1,1 @@
+MsgBox "This is a dummy VBS script."
